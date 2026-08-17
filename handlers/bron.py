@@ -86,6 +86,12 @@ async def start_bron(message: types.Message, state: FSMContext):
 async def search_pharmacy_by_text(message: types.Message, state: FSMContext,
                                   company, is_admin: bool):
     """Matn orqali qidiruv — inline rejim o'chiq bo'lsa ham ishlaydi."""
+    # Inline qidiruvdan apteka tanlanganda Telegram chatga tayyor xabar
+    # yuboradi (via_bot to'ldirilgan bo'ladi). Uni yangi qidiruv so'rovi
+    # deb qabul qilmaymiz — foydalanuvchi xabar tagidagi tugmani bosadi.
+    if message.via_bot:
+        return
+
     if message.text in kb.STOP_BUTTONS:
         await state.clear()
         return await message.answer(
