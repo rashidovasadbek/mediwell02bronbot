@@ -99,22 +99,25 @@ async def staff_back_to_list(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith(f"{ikb.CB_USER}card:"))
-async def staff_card(callback: types.CallbackQuery):
-    user_id = int(callback.data.split(":")[-1])
-    users = {u["id"]: u for u in await repo.list_users()}
-    u = users.get(user_id)
-    if not u:
-        return await callback.answer("Xodim topilmadi", show_alert=True)
-
-    await callback.message.edit_text(
+def staff_card_text(u) -> str:
+    return (
         f"{ROLE_LABEL.get(u['role'], u['role'])}\n\n"
         f"👤 <b>{esc(u['full_name'])}</b>\n"
         f"🆔 <code>{u['telegram_id']}</code>\n"
         f"📞 {esc(u['phone']) if u['phone'] else '—'}\n"
-        f"Holat: {'✅ faol' if u['active'] else '🚫 bloklangan'}",
-        parse_mode="HTML",
-        reply_markup=ikb.user_card(u),
+        f"Holat: {'✅ faol' if u['active'] else '🚫 bloklangan'}"
+    )
+
+
+@router.callback_query(F.data.startswith(f"{ikb.CB_USER}card:"))
+async def staff_card(callback: types.CallbackQuery):
+    user_id = int(callback.data.split(":")[-1])
+    u = await repo.get_user_by_id(user_id)
+    if not u:
+        return await callback.answer("Xodim topilmadi", show_alert=True)
+
+    await callback.message.edit_text(
+        staff_card_text(u), parse_mode="HTML", reply_markup=ikb.user_card(u)
     )
     await callback.answer()
 
@@ -122,8 +125,7 @@ async def staff_card(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith(f"{ikb.CB_USER}toggle:"))
 async def staff_toggle(callback: types.CallbackQuery, user):
     user_id = int(callback.data.split(":")[-1])
-    users = {u["id"]: u for u in await repo.list_users()}
-    target = users.get(user_id)
+    target = await repo.get_user_by_id(user_id)
     if not target:
         return await callback.answer("Xodim topilmadi", show_alert=True)
 
@@ -138,6 +140,60 @@ async def staff_toggle(callback: types.CallbackQuery, user):
     await repo.set_user_active(user_id, not target["active"])
     await callback.answer("✅ Holat o'zgartirildi")
     await render_staff_list(callback.message)
+
+
+# --- Rolni o'zgartirish ---
+
+@router.callback_query(F.data.startswith(f"{ikb.CB_USER}chrole:"))
+async def staff_role_picker(callback: types.CallbackQuery):
+    user_id = int(callback.data.split(":")[-1])
+    target = await repo.get_user_by_id(user_id)
+    if not target:
+        return await callback.answer("Xodim topilmadi", show_alert=True)
+
+    await callback.message.edit_text(
+        f"👤 <b>{esc(target['full_name'])}</b>\n"
+        f"Hozirgi rol: {ROLE_LABEL.get(target['role'], target['role'])}\n\n"
+        f"Yangi rolni tanlang:\n\n"
+        f"👑 <b>Admin</b> — hamma narsa: dorilar, aptekalar, xodimlar, "
+        f"rekvizitlar, to'lov tasdig'i\n"
+        f"💰 <b>Buxgalter</b> — bron qiladi va to'lovni tasdiqlaydi\n"
+        f"👤 <b>Menejer</b> — faqat bron qiladi",
+        parse_mode="HTML",
+        reply_markup=ikb.role_picker_for(user_id, target["role"]),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith(f"{ikb.CB_USER}setrole:"))
+async def staff_set_role(callback: types.CallbackQuery, user):
+    _, _, role, raw_id = callback.data.split(":")
+    user_id = int(raw_id)
+
+    target = await repo.get_user_by_id(user_id)
+    if not target:
+        return await callback.answer("Xodim topilmadi", show_alert=True)
+    if role == target["role"]:
+        return await callback.answer("Bu rol allaqachon o'rnatilgan")
+
+    # Oxirgi adminni pastga tushirib, hech kim admin qolmasligining oldini olamiz
+    if target["role"] == "admin" and role != "admin" and await repo.count_admins() <= 1:
+        return await callback.answer(
+            "Bu yagona admin — rolini o'zgartirib bo'lmaydi!", show_alert=True
+        )
+    if target["telegram_id"] == user["telegram_id"] and role != "admin":
+        return await callback.answer(
+            "O'z rolingizni pasaytira olmaysiz — boshqa admin bajarsin.", show_alert=True
+        )
+
+    await repo.set_user_role(user_id, role)
+    updated = await repo.get_user_by_id(user_id)
+    await callback.message.edit_text(
+        f"✅ Rol o'zgartirildi!\n\n{staff_card_text(updated)}",
+        parse_mode="HTML",
+        reply_markup=ikb.user_card(updated),
+    )
+    await callback.answer(f"✅ {ROLE_LABEL.get(role, role)}")
 
 
 @router.callback_query(F.data == f"{ikb.CB_USER}new")

@@ -102,6 +102,21 @@ async def set_user_active(user_id: int, active: bool) -> None:
         await conn.execute("UPDATE app_user SET active = $1 WHERE id = $2", active, user_id)
 
 
+USER_ROLES = ("admin", "buxgalter", "manager")
+
+
+async def set_user_role(user_id: int, role: str) -> None:
+    if role not in USER_ROLES:
+        raise ValueError(f"Noma'lum rol: {role}")
+    async with get_pool().acquire() as conn:
+        await conn.execute("UPDATE app_user SET role = $1 WHERE id = $2", role, user_id)
+
+
+async def get_user_by_id(user_id: int):
+    async with get_pool().acquire() as conn:
+        return await conn.fetchrow("SELECT * FROM app_user WHERE id = $1", user_id)
+
+
 async def count_admins() -> int:
     async with get_pool().acquire() as conn:
         return await conn.fetchval(

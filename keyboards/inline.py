@@ -136,9 +136,25 @@ def users_list(rows) -> InlineKeyboardMarkup:
 def user_card(user) -> InlineKeyboardMarkup:
     uid = user["id"]
     b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(
+        text="🎭 Rolni o'zgartirish", callback_data=f"{CB_USER}chrole:{uid}"
+    ))
     toggle = "🚫 Bloklash" if user["active"] else "✅ Faollashtirish"
     b.row(InlineKeyboardButton(text=toggle, callback_data=f"{CB_USER}toggle:{uid}"))
     b.row(InlineKeyboardButton(text="🔙 Ro'yxatga", callback_data=f"{CB_USER}list"))
+    return b.as_markup()
+
+
+def role_picker_for(user_id: int, current_role: str) -> InlineKeyboardMarkup:
+    """Mavjud xodimning rolini almashtirish. Hozirgi rol ✅ bilan belgilanadi."""
+    labels = [("manager", "👤 Menejer"), ("buxgalter", "💰 Buxgalter"), ("admin", "👑 Admin")]
+    b = InlineKeyboardBuilder()
+    for role, label in labels:
+        mark = " ✅" if role == current_role else ""
+        b.row(InlineKeyboardButton(
+            text=f"{label}{mark}", callback_data=f"{CB_USER}setrole:{role}:{user_id}"
+        ))
+    b.row(InlineKeyboardButton(text="🔙 Orqaga", callback_data=f"{CB_USER}card:{user_id}"))
     return b.as_markup()
 
 
