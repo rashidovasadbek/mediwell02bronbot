@@ -1,0 +1,58 @@
+# -*- coding: utf-8 -*-
+"""Bosh menyu, /start, /help va umumiy yordamchilar."""
+from aiogram import F, Router, types
+from aiogram.filters import Command, CommandStart
+from aiogram.fsm.context import FSMContext
+
+from keyboards import reply as kb
+from keyboards.inline import CB_NOOP
+
+router = Router(name="common")
+
+HELP_TEXT = (
+    "📖 <b>Botdan foydalanish</b>\n\n"
+    "1️⃣ <b>📋 Bron</b> → aptekani qidiring va tanlang\n"
+    "2️⃣ Dorilarni tanlab, har biriga miqdor kiriting\n"
+    "3️⃣ <b>🛒 Hisoblash</b> → spesifikatsiyani ko'ring\n"
+    "4️⃣ <b>✅ Tasdiqlash</b> → Excel sizga keladi, bron guruhga tushadi\n\n"
+    "📜 <b>Mening bronlarim</b> — oxirgi bronlaringiz tarixi\n\n"
+    "🆘 Muammo bo'lsa administratorga murojaat qiling."
+)
+
+
+@router.message(CommandStart())
+async def start(message: types.Message, state: FSMContext, user, is_admin: bool):
+    await state.clear()
+    await message.answer(
+        f"👋 Assalomu alaykum, <b>{user['full_name']}</b>!\n\nBo'limni tanlang:",
+        parse_mode="HTML",
+        reply_markup=kb.main_menu(is_admin),
+    )
+
+
+@router.message(Command("help"))
+@router.message(F.text == kb.BTN_HELP)
+async def help_handler(message: types.Message):
+    await message.answer(HELP_TEXT, parse_mode="HTML")
+
+
+@router.message(F.text == kb.BTN_MAIN_MENU)
+async def main_menu(message: types.Message, state: FSMContext, is_admin: bool):
+    await state.clear()
+    await message.answer("👋 Bo'limni tanlang:", reply_markup=kb.main_menu(is_admin))
+
+
+@router.message(Command("id"))
+async def whoami(message: types.Message, user):
+    await message.answer(
+        f"🆔 Sizning ID: <code>{message.from_user.id}</code>\n"
+        f"👤 {user['full_name']}  |  Rol: <b>{user['role']}</b>\n"
+        f"💬 Bu chat ID: <code>{message.chat.id}</code>",
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == CB_NOOP)
+async def noop(callback: types.CallbackQuery):
+    """Faqat ko'rsatish uchun qo'yilgan tugmalar."""
+    await callback.answer()
