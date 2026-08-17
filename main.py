@@ -17,7 +17,7 @@ from aiogram.types import BotCommand
 
 from config import ConfigError, load_settings, setup_logging
 from db.pool import close_pool, init_pool
-from handlers import admin, common, pharmacy_admin
+from handlers import admin, bron, common, pharmacy_admin
 from middlewares.auth import AuthMiddleware
 from middlewares.context import CompanyMiddleware
 from services import company as company_service
@@ -33,7 +33,8 @@ COMMANDS = [
 
 
 def build_dispatcher(settings) -> Dispatcher:
-    dp = Dispatcher()
+    # workflow_data — handlerlar `settings` argumentini so'rasa shu keladi
+    dp = Dispatcher(settings=settings)
 
     # Outer middleware: filtrlar chaqirilishidan oldin ishlaydi, shuning
     # uchun `is_admin` router filtrlariga ham yetib boradi.
@@ -43,9 +44,11 @@ def build_dispatcher(settings) -> Dispatcher:
         observer.outer_middleware(auth)
         observer.outer_middleware(company_mw)
 
-    # Tartib muhim: aniqroq routerlar oldinroq.
+    # Tartib muhim: admin routerlari oldinroq (ular IsAdmin bilan
+    # cheklangan, o'tmasa keyingisiga tushadi).
     dp.include_router(admin.router)
     dp.include_router(pharmacy_admin.router)
+    dp.include_router(bron.router)
     dp.include_router(common.router)
     return dp
 
