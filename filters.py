@@ -19,3 +19,15 @@ class CanPay(BaseFilter):
 
     async def __call__(self, event: TelegramObject, can_pay: bool = False) -> bool:
         return can_pay
+
+
+class CanManagePharmacy(BaseFilter):
+    """Admin yoki buxgalter — apteka qo'shish va tahrirlash huquqi.
+
+    Dorilar (narx), xodimlar va rekvizitlar bunga kirmaydi — ular
+    faqat adminda qoladi.
+    """
+
+    async def __call__(self, event: TelegramObject,
+                       can_manage_pharmacy: bool = False) -> bool:
+        return can_manage_pharmacy

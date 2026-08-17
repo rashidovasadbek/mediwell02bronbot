@@ -30,7 +30,8 @@ router.callback_query.filter(IsAdmin())
 #  UMUMIY YORDAMCHILAR
 # ============================================================
 
-async def stop_flow(message: types.Message, state: FSMContext) -> bool:
+async def stop_flow(message: types.Message, state: FSMContext,
+                    role: str = "admin") -> bool:
     """Bekor qilish tugmalari bosilganini tekshiradi.
 
     Har FSM handlerining birinchi qatorida chaqiriladi — foydalanuvchi
@@ -38,7 +39,7 @@ async def stop_flow(message: types.Message, state: FSMContext) -> bool:
     """
     if message.text in kb.STOP_BUTTONS:
         await state.clear()
-        await message.answer("🛠 Admin panel:", reply_markup=kb.admin_menu())
+        await message.answer("🛠 Panel:", reply_markup=kb.admin_menu(role))
         return True
     return False
 
@@ -53,11 +54,7 @@ def parse_price(text: str) -> Decimal | None:
     return value if value >= 0 else None
 
 
-@router.message(Command("admin"))
-@router.message(F.text == kb.BTN_ADMIN)
-async def admin_menu(message: types.Message, state: FSMContext):
-    await state.clear()
-    await message.answer("🛠 Admin panel:", reply_markup=kb.admin_menu())
+# Panelga kirish handlers/common.py da — u yerga buxgalter ham tushadi.
 
 
 # ============================================================

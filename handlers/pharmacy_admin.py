@@ -14,7 +14,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile
 
 from db import repo
-from filters import IsAdmin
+from filters import CanManagePharmacy
 from handlers.admin import stop_flow
 from keyboards import inline as ikb
 from keyboards import reply as kb
@@ -24,9 +24,12 @@ from states import InfoState, PharmacyState
 
 logger = logging.getLogger(__name__)
 
+# Admin va buxgalter: buxgalter apteka qo'shadi, tahrirlaydi va ko'radi.
+# Dori narxlari, xodimlar va rekvizitlar bu routerda emas — ular
+# handlers/admin.py da, faqat admin uchun.
 router = Router(name="pharmacy_admin")
-router.message.filter(IsAdmin())
-router.callback_query.filter(IsAdmin())
+router.message.filter(CanManagePharmacy())
+router.callback_query.filter(CanManagePharmacy())
 
 LIST_LIMIT = 50
 
@@ -43,8 +46,8 @@ async def new_pharmacy(message: types.Message, state: FSMContext):
 
 
 @router.message(PharmacyState.inn)
-async def new_pharmacy_inn(message: types.Message, state: FSMContext):
-    if await stop_flow(message, state):
+async def new_pharmacy_inn(message: types.Message, state: FSMContext, user):
+    if await stop_flow(message, state, user["role"]):
         return
     inn = (message.text or "").strip()
     if not inn.isdigit() or not 9 <= len(inn) <= 14:
@@ -72,8 +75,8 @@ async def new_pharmacy_inn(message: types.Message, state: FSMContext):
 
 
 @router.message(PharmacyState.name)
-async def new_pharmacy_name(message: types.Message, state: FSMContext):
-    if await stop_flow(message, state):
+async def new_pharmacy_name(message: types.Message, state: FSMContext, user):
+    if await stop_flow(message, state, user["role"]):
         return
     name = (message.text or "").strip()
     if len(name) < 2:
@@ -126,8 +129,9 @@ async def new_pharmacy_manager(callback: types.CallbackQuery, state: FSMContext)
 
 
 @router.message(PharmacyState.phone)
-async def new_pharmacy_save(message: types.Message, state: FSMContext, company):
-    if await stop_flow(message, state):
+async def new_pharmacy_save(message: types.Message, state: FSMContext,
+                            company, user):
+    if await stop_flow(message, state, user["role"]):
         return
     phone = None if message.text == kb.BTN_SKIP else (message.text or "").strip() or None
 
@@ -147,7 +151,7 @@ async def new_pharmacy_save(message: types.Message, state: FSMContext, company):
         await state.clear()
         return await message.answer(
             f"❌ Bazaga yozib bo'lmadi: {type(e).__name__}: {e}",
-            reply_markup=kb.admin_menu(),
+            reply_markup=kb.admin_menu(user["role"]),
         )
 
     await state.clear()
@@ -162,7 +166,7 @@ async def new_pharmacy_save(message: types.Message, state: FSMContext, company):
         f"   <i>(A={seq} / B={region_code} / C={esc(contract['account_code'])})</i>\n"
         f"📅 {contract['contract_date'].strftime('%d.%m.%Y')}",
         parse_mode="HTML",
-        reply_markup=kb.admin_menu(),
+        reply_markup=kb.admin_menu(user["role"]),
     )
 
 
@@ -201,8 +205,9 @@ async def edit_pharmacy(message: types.Message, state: FSMContext):
 
 
 @router.message(PharmacyState.edit_search)
-async def edit_pharmacy_search(message: types.Message, state: FSMContext, company):
-    if await stop_flow(message, state):
+async def edit_pharmacy_search(message: types.Message, state: FSMContext,
+                               company, user):
+    if await stop_flow(message, state, user["role"]):
         return
     rows = await repo.search_pharmacies(company["id"], (message.text or "").strip(), limit=1)
     if not rows:
@@ -219,8 +224,8 @@ async def edit_pharmacy_search(message: types.Message, state: FSMContext, compan
 
 
 @router.message(PharmacyState.edit_field)
-async def edit_pharmacy_field(message: types.Message, state: FSMContext):
-    if await stop_flow(message, state):
+async def edit_pharmacy_field(message: types.Message, state: FSMContext, user):
+    if await stop_flow(message, state, user["role"]):
         return
     text = message.text or ""
 
@@ -247,7 +252,8 @@ async def edit_pharmacy_field(message: types.Message, state: FSMContext):
 
 
 @router.callback_query(PharmacyState.edit_field, F.data.startswith(ikb.CB_REGION))
-async def edit_pharmacy_region(callback: types.CallbackQuery, state: FSMContext, company):
+async def edit_pharmacy_region(callback: types.CallbackQuery, state: FSMContext,
+                               company, user):
     region_id = int(callback.data.removeprefix(ikb.CB_REGION))
     data = await state.get_data()
     await repo.update_pharmacy_region(data["edit_ph_id"], region_id)
@@ -259,13 +265,14 @@ async def edit_pharmacy_region(callback: types.CallbackQuery, state: FSMContext,
         f"<i>Eslatma: shartnoma raqamidagi viloyat kodi o'zgarmaydi — "
         f"hujjat allaqachon berilgan.</i>",
         parse_mode="HTML",
-        reply_markup=kb.admin_menu(),
+        reply_markup=kb.admin_menu(user["role"]),
     )
     await callback.answer()
 
 
 @router.callback_query(PharmacyState.edit_field, F.data.startswith(ikb.CB_MANAGER))
-async def edit_pharmacy_manager(callback: types.CallbackQuery, state: FSMContext, company):
+async def edit_pharmacy_manager(callback: types.CallbackQuery, state: FSMContext,
+                                company, user):
     manager_id = int(callback.data.removeprefix(ikb.CB_MANAGER)) or None
     data = await state.get_data()
     await repo.update_pharmacy_manager(data["edit_ph_id"], manager_id)
@@ -275,14 +282,15 @@ async def edit_pharmacy_manager(callback: types.CallbackQuery, state: FSMContext
     await callback.message.answer(
         f"✅ Menejer yangilandi!\n\n{pharmacy_block(row)}",
         parse_mode="HTML",
-        reply_markup=kb.admin_menu(),
+        reply_markup=kb.admin_menu(user["role"]),
     )
     await callback.answer()
 
 
 @router.message(PharmacyState.edit_value)
-async def edit_pharmacy_save(message: types.Message, state: FSMContext, company):
-    if await stop_flow(message, state):
+async def edit_pharmacy_save(message: types.Message, state: FSMContext,
+                             company, user):
+    if await stop_flow(message, state, user["role"]):
         return
     data = await state.get_data()
     field = data["edit_field"]
@@ -299,7 +307,7 @@ async def edit_pharmacy_save(message: types.Message, state: FSMContext, company)
     await message.answer(
         f"✅ Yangilandi!\n\n{pharmacy_block(row)}",
         parse_mode="HTML",
-        reply_markup=kb.admin_menu(),
+        reply_markup=kb.admin_menu(user["role"]),
     )
 
 
@@ -329,8 +337,8 @@ async def info_search_prompt(callback: types.CallbackQuery, state: FSMContext):
 
 
 @router.message(InfoState.search)
-async def info_search(message: types.Message, state: FSMContext, company):
-    if await stop_flow(message, state):
+async def info_search(message: types.Message, state: FSMContext, company, user):
+    if await stop_flow(message, state, user["role"]):
         return
     rows = await repo.search_pharmacies(company["id"], (message.text or "").strip(), limit=20)
     if not rows:
@@ -340,7 +348,7 @@ async def info_search(message: types.Message, state: FSMContext, company):
     blocks = [pharmacy_block(r) for r in rows]
     if len(rows) > 1:
         blocks[0] = f"🔎 <b>{len(rows)} ta natija:</b>\n\n" + blocks[0]
-    await send_chunks(message, blocks)
+    await send_chunks(message, blocks, user["role"])
 
 
 @router.callback_query(F.data == "info:region")
@@ -358,7 +366,8 @@ async def info_region_menu(callback: types.CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data.startswith(ikb.CB_INFO_REGION))
-async def info_region_list(callback: types.CallbackQuery, state: FSMContext, company):
+async def info_region_list(callback: types.CallbackQuery, state: FSMContext,
+                           company, user):
     region_id = int(callback.data.removeprefix(ikb.CB_INFO_REGION))
     await state.clear()
     await callback.answer("⏳")
@@ -366,7 +375,7 @@ async def info_region_list(callback: types.CallbackQuery, state: FSMContext, com
     rows = await repo.list_pharmacies_by_region(company["id"], region_id, limit=200)
     if not rows:
         return await callback.message.answer(
-            "❌ Bu regionda apteka yo'q.", reply_markup=kb.admin_menu()
+            "❌ Bu regionda apteka yo'q.", reply_markup=kb.admin_menu(user["role"])
         )
 
     region_name = rows[0]["region_name"]
@@ -378,29 +387,31 @@ async def info_region_list(callback: types.CallbackQuery, state: FSMContext, com
             f"<i>Jami {len(rows)} ta, birinchi {LIST_LIMIT} tasi ko'rsatildi. "
             f"To'liq ro'yxat Excelda.</i>"
         )
-    await send_chunks(callback.message, blocks)
+    await send_chunks(callback.message, blocks, user["role"])
 
 
 @router.callback_query(F.data == "info:excel")
-async def info_excel(callback: types.CallbackQuery, state: FSMContext, company):
+async def info_excel(callback: types.CallbackQuery, state: FSMContext,
+                     company, user):
     await state.clear()
     await callback.answer("⏳ Excel tayyorlanmoqda...")
 
     rows = await repo.search_pharmacies(company["id"], "", limit=10000)
     if not rows:
         return await callback.message.answer(
-            "❌ Bazada apteka yo'q!", reply_markup=kb.admin_menu()
+            "❌ Bazada apteka yo'q!", reply_markup=kb.admin_menu(user["role"])
         )
 
     filename = f"aptekalar_{datetime.now().strftime('%d.%m.%Y')}.xlsx"
     await callback.message.answer_document(
         BufferedInputFile(build_pharmacies_excel(rows), filename=filename),
         caption=f"📥 Aptekalar ro'yxati — {len(rows)} ta",
-        reply_markup=kb.admin_menu(),
+        reply_markup=kb.admin_menu(user["role"]),
     )
 
 
-async def send_chunks(message: types.Message, blocks: list[str]) -> None:
+async def send_chunks(message: types.Message, blocks: list[str],
+                      role: str = "admin") -> None:
     """Uzun ro'yxatni 4096 chegarasiga sig'diradi."""
     parts = chunks(blocks)
     for i, part in enumerate(parts):
@@ -408,5 +419,5 @@ async def send_chunks(message: types.Message, blocks: list[str]) -> None:
         await message.answer(
             part,
             parse_mode="HTML",
-            reply_markup=kb.admin_menu() if last else None,
+            reply_markup=kb.admin_menu(role) if last else None,
         )

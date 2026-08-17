@@ -59,9 +59,13 @@ class AuthMiddleware(BaseMiddleware):
         if not user["active"]:
             return await self._deny(event, BLOCKED_TEXT)
 
+        role = user["role"]
         data["user"] = user
-        data["is_admin"] = user["role"] == "admin"
-        data["can_pay"] = user["role"] in ("admin", "buxgalter")
+        data["is_admin"] = role == "admin"
+        data["can_pay"] = role in ("admin", "buxgalter")
+        data["can_manage_pharmacy"] = role in ("admin", "buxgalter")
+        # Bosh menyuda «⚙️ Panel» tugmasi ko'rinadimi
+        data["has_panel"] = role in ("admin", "buxgalter")
         return await handler(event, data)
 
     @staticmethod

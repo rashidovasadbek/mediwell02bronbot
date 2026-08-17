@@ -84,7 +84,7 @@ async def start_bron(message: types.Message, state: FSMContext):
 
 @router.message(BronState.search_pharmacy)
 async def search_pharmacy_by_text(message: types.Message, state: FSMContext,
-                                  company, is_admin: bool):
+                                  company, has_panel: bool):
     """Matn orqali qidiruv — inline rejim o'chiq bo'lsa ham ishlaydi."""
     # Inline qidiruvdan apteka tanlanganda Telegram chatga tayyor xabar
     # yuboradi (via_bot to'ldirilgan bo'ladi). Uni yangi qidiruv so'rovi
@@ -95,7 +95,7 @@ async def search_pharmacy_by_text(message: types.Message, state: FSMContext,
     if message.text in kb.STOP_BUTTONS:
         await state.clear()
         return await message.answer(
-            "👋 Bo'limni tanlang:", reply_markup=kb.main_menu(is_admin)
+            "👋 Bo'limni tanlang:", reply_markup=kb.main_menu(has_panel)
         )
 
     query = (message.text or "").strip()
@@ -201,7 +201,7 @@ async def ask_quantity(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(BronState.waiting_quantity)
 async def save_quantity(message: types.Message, state: FSMContext,
-                        company, is_admin: bool):
+                        company, has_panel: bool):
     text = (message.text or "").strip()
 
     # Miqdor o'rniga menyu tugmasi bosilsa — o'sha amalni bajaramiz
@@ -214,7 +214,7 @@ async def save_quantity(message: types.Message, state: FSMContext,
     if text == kb.BTN_MAIN_MENU:
         await state.clear()
         return await message.answer(
-            "👋 Bo'limni tanlang:", reply_markup=kb.main_menu(is_admin)
+            "👋 Bo'limni tanlang:", reply_markup=kb.main_menu(has_panel)
         )
 
     if not text.isdigit() or not 0 < int(text) <= MAX_QUANTITY:
@@ -317,10 +317,10 @@ async def calculate(message: types.Message, state: FSMContext, company):
 
 @router.message(F.text == kb.BTN_CONFIRM)
 async def confirm(message: types.Message, state: FSMContext, user, company,
-                  is_admin: bool, settings):
+                  has_panel: bool, settings):
     data = await state.get_data()
     if not data.get("pharmacy_id"):
-        return await message.answer("⚠️ Apteka tanlanmagan!", reply_markup=kb.main_menu(is_admin))
+        return await message.answer("⚠️ Apteka tanlanmagan!", reply_markup=kb.main_menu(has_panel))
     if not data.get("calculated"):
         return await message.answer("⚠️ Avval «🛒 Hisoblash» tugmasini bosing.")
 
@@ -341,7 +341,7 @@ async def confirm(message: types.Message, state: FSMContext, user, company,
         logger.exception("Bron yaratishda xato (user=%s)", user_id)
         return await message.answer(
             "❌ Bronni saqlab bo'lmadi. Administratorga xabar bering.",
-            reply_markup=kb.main_menu(is_admin),
+            reply_markup=kb.main_menu(has_panel),
         )
 
     await state.clear()
@@ -361,7 +361,7 @@ async def confirm(message: types.Message, state: FSMContext, user, company,
     parts = manager_receipt_messages(company, pharmacy, totals)
     for i, part in enumerate(parts):
         last = i == len(parts) - 1
-        await message.answer(part, reply_markup=kb.main_menu(is_admin) if last else None)
+        await message.answer(part, reply_markup=kb.main_menu(has_panel) if last else None)
 
     # --- Bron guruhiga ---
     await _send_to_bron_group(
@@ -400,13 +400,14 @@ async def _send_to_bron_group(bot: Bot, group_id: int, bron_id: int,
 # ============================================================
 
 @router.message(F.text == kb.BTN_MY_BRONS)
-async def my_brons(message: types.Message, state: FSMContext, user, is_admin: bool):
+async def my_brons(message: types.Message, state: FSMContext, user,
+                   is_admin: bool, has_panel: bool):
     await state.clear()
-    # Admin hammasini, menejer faqat o'zinikini ko'radi
+    # Admin hammasini, qolganlar faqat o'zinikini ko'radi
     rows = await repo.list_brons(None if is_admin else message.from_user.id, limit=15)
     if not rows:
         return await message.answer(
-            "📜 Hali bron yo'q.", reply_markup=kb.main_menu(is_admin)
+            "📜 Hali bron yo'q.", reply_markup=kb.main_menu(has_panel)
         )
 
     status_label = {
@@ -433,4 +434,4 @@ async def my_brons(message: types.Message, state: FSMContext, user, is_admin: bo
     parts = chunks(lines)
     for i, part in enumerate(parts):
         last = i == len(parts) - 1
-        await message.answer(part, reply_markup=kb.main_menu(is_admin) if last else None)
+        await message.answer(part, reply_markup=kb.main_menu(has_panel) if last else None)
