@@ -13,6 +13,7 @@ from services.pricing import Totals, fmt_money, fmt_qty, fmt_sum
 MAX_LEN = 3500
 
 LINE = "─────────────────────"
+SHORT_LINE = "──────────────────"
 
 
 def esc(value) -> str:
@@ -52,7 +53,7 @@ def spec_lines(totals: Totals) -> list[str]:
             f"   {fmt_qty(ln.quantity)} {esc(ln.unit)} × {fmt_money(ln.price_no_nds)}"
             f" = {fmt_money(ln.cost_no_nds)}\n"
             f"   NDS {ln.nds_rate}%: +{fmt_money(ln.nds_sum)}\n"
-            f"   💵 <b>{fmt_sum(ln.line_total)} so'm</b>"
+            f"   💵 <b>{fmt_money(ln.line_total)} so'm</b>"
         )
         for i, ln in enumerate(totals.lines, 1)
     ]
@@ -83,7 +84,7 @@ def spec_messages(pharmacy, totals: Totals) -> list[str]:
 
 def bank_block(company) -> str:
     return (
-        f"🏦 <b>REKVIZITLAR:</b>\n"
+        f"🏦 <b>BANK REKVIZITLARI:</b>\n"
         f"💳 H/R: <code>{esc(company['account_no'] or '—')}</code>\n"
         f"🆔 INN: <code>{esc(company['inn'] or '—')}</code>\n"
         f"🏛 MFO: <code>{esc(company['mfo'] or '—')}</code> ({esc(company['bank_name'] or '—')})"
@@ -130,18 +131,24 @@ def oplata_group_messages(bron, items_totals: Totals, company) -> list[str]:
     return chunks([header] + spec_lines(items_totals) + [footer])
 
 
-def manager_receipt(bron_id: int, company, pharmacy, totals: Totals) -> str:
-    """Menejerga DM: qisqa tasdiq (batafsili Excelda)."""
-    return (
-        f"{company['header_emoji']} <b>{esc(company['name'])}</b>\n\n"
-        f"{bank_block(company)}\n\n"
-        f"✅ Bron №{bron_id} yaratildi\n"
-        f"🏢 {esc(pharmacy['name'])}\n"
-        f"📄 Shartnoma №{esc(pharmacy['contract_no'])}"
-        f"  ({_date(pharmacy['contract_date'])})\n"
-        f"📦 {len(totals.lines)} xil dori\n"
-        f"💰 <b>JAMI: <code>{fmt_sum(totals.grand_total)} so'm</code></b>"
+def manager_receipt_messages(company, pharmacy, totals: Totals) -> list[str]:
+    """Menejerga DM: rekvizitlar + to'liq dorilar ro'yxati.
+
+    Bitta bronda 6-7 xil dori bo'lishi odatiy — ro'yxat to'liq chiqadi,
+    uzun bo'lsa chunks() bo'lib yuboradi.
+    """
+    header = (
+        f"{bank_block(company)}\n"
+        f"📄 <b>Shartnoma №:</b> {esc(pharmacy['contract_no'])}\n"
+        f"📅 <b>Sana:</b> {_date(pharmacy['contract_date'])}\n"
+        f"{SHORT_LINE}"
     )
+    footer = (
+        f"{SHORT_LINE}\n"
+        f"💰 <b>TO'LOV UCHUN JAMI:</b> "
+        f"<code>{fmt_sum(totals.grand_total)}</code> so'm"
+    )
+    return chunks([header] + spec_lines(totals) + [footer])
 
 
 # ============================================================

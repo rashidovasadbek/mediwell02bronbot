@@ -17,7 +17,7 @@ from keyboards import reply as kb
 from services.excel import build_spec_excel
 from services.pricing import calc_items, fmt_sum
 from services.render import (
-    bron_group_messages, esc, manager_receipt, spec_messages,
+    bron_group_messages, esc, manager_receipt_messages, spec_messages,
 )
 from states import BronState
 
@@ -352,10 +352,10 @@ async def confirm(message: types.Message, state: FSMContext, user, company,
         logger.exception("Excel yasashda xato (bron=%s)", bron_id)
         await message.answer("⚠️ Excel yasab bo'lmadi, lekin bron saqlandi.")
 
-    await message.answer(
-        manager_receipt(bron_id, company, pharmacy, totals),
-        reply_markup=kb.main_menu(is_admin),
-    )
+    parts = manager_receipt_messages(company, pharmacy, totals)
+    for i, part in enumerate(parts):
+        last = i == len(parts) - 1
+        await message.answer(part, reply_markup=kb.main_menu(is_admin) if last else None)
 
     # --- Bron guruhiga ---
     await _send_to_bron_group(
