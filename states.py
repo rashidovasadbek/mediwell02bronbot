@@ -4,6 +4,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 
 class BronState(StatesGroup):
+    search_pharmacy = State()
     waiting_quantity = State()
 
 

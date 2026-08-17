@@ -31,6 +31,21 @@ def pharmacy_search_button() -> InlineKeyboardMarkup:
     ]])
 
 
+def pharmacy_results(rows) -> InlineKeyboardMarkup:
+    """Matnli qidiruv natijalari.
+
+    Inline rejim (@BotFather) o'chiq bo'lsa ham bron qilish ishlashi
+    uchun — botni bitta sozlamaga bog'lab qo'ymaymiz.
+    """
+    b = InlineKeyboardBuilder()
+    for r in rows:
+        b.row(InlineKeyboardButton(
+            text=f"🏢 {r['name']} — №{r['contract_no']}",
+            callback_data=f"{CB_PICK_PHARMACY}{r['id']}",
+        ))
+    return b.as_markup()
+
+
 def drugs_list(drugs) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     for d in drugs:

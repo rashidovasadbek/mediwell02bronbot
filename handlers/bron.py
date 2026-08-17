@@ -72,8 +72,42 @@ async def show_drug_menu(bot: Bot, chat_id: int, state: FSMContext) -> None:
 @router.message(F.text == kb.BTN_BRON)
 async def start_bron(message: types.Message, state: FSMContext):
     await state.clear()
+    await state.set_state(BronState.search_pharmacy)
     await message.answer(
-        "📋 Aptekani toping:", reply_markup=ikb.pharmacy_search_button()
+        "📋 <b>Aptekani toping</b>\n\n"
+        "Apteka nomini, INN yoki shartnoma raqamini yozing.\n"
+        "<i>Yoki pastdagi tugma orqali qidiring.</i>",
+        reply_markup=kb.cancel(),
+    )
+    await message.answer("👇", reply_markup=ikb.pharmacy_search_button())
+
+
+@router.message(BronState.search_pharmacy)
+async def search_pharmacy_by_text(message: types.Message, state: FSMContext,
+                                  company, is_admin: bool):
+    """Matn orqali qidiruv — inline rejim o'chiq bo'lsa ham ishlaydi."""
+    if message.text in kb.STOP_BUTTONS:
+        await state.clear()
+        return await message.answer(
+            "👋 Bo'limni tanlang:", reply_markup=kb.main_menu(is_admin)
+        )
+
+    query = (message.text or "").strip()
+    if len(query) < 2:
+        return await message.answer("❌ Kamida 2 ta belgi kiriting:")
+
+    rows = await repo.search_pharmacies(company["id"], query, limit=20)
+    rows = [r for r in rows if r["contract_id"]]  # shartnomasizlar bron uchun yaroqsiz
+
+    if not rows:
+        return await message.answer(
+            "❌ Apteka topilmadi. Boshqacha yozib ko'ring "
+            "yoki administratordan qo'shishni so'rang:"
+        )
+
+    await message.answer(
+        f"🔎 <b>{len(rows)} ta natija</b> — kerakligini tanlang:",
+        reply_markup=ikb.pharmacy_results(rows),
     )
 
 
