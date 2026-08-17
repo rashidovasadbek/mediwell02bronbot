@@ -9,6 +9,10 @@ from keyboards.inline import CB_NOOP
 
 router = Router(name="common")
 
+# Bu router guruhlarda ham ishlaydigan yagona message handler (/id) ni
+# saqlaydi, shuning uchun filtr router darajasida emas — har handlerda.
+PRIVATE = F.chat.type == "private"
+
 HELP_TEXT = (
     "📖 <b>Botdan foydalanish</b>\n\n"
     "1️⃣ <b>📋 Bron</b> → aptekani qidiring va tanlang\n"
@@ -20,7 +24,7 @@ HELP_TEXT = (
 )
 
 
-@router.message(CommandStart())
+@router.message(CommandStart(), PRIVATE)
 async def start(message: types.Message, state: FSMContext, user, is_admin: bool):
     await state.clear()
     await message.answer(
@@ -30,13 +34,13 @@ async def start(message: types.Message, state: FSMContext, user, is_admin: bool)
     )
 
 
-@router.message(Command("help"))
-@router.message(F.text == kb.BTN_HELP)
+@router.message(Command("help"), PRIVATE)
+@router.message(F.text == kb.BTN_HELP, PRIVATE)
 async def help_handler(message: types.Message):
     await message.answer(HELP_TEXT, parse_mode="HTML")
 
 
-@router.message(F.text == kb.BTN_MAIN_MENU)
+@router.message(F.text == kb.BTN_MAIN_MENU, PRIVATE)
 async def main_menu(message: types.Message, state: FSMContext, is_admin: bool):
     await state.clear()
     await message.answer("👋 Bo'limni tanlang:", reply_markup=kb.main_menu(is_admin))
@@ -44,6 +48,8 @@ async def main_menu(message: types.Message, state: FSMContext, is_admin: bool):
 
 @router.message(Command("id"))
 async def whoami(message: types.Message, user):
+    # Ataylab guruhlarda ham ishlaydi: yangi guruh ochilganda uning
+    # chat ID sini bilishning eng oson yo'li. Menyuda ko'rinmaydi.
     await message.answer(
         f"🆔 Sizning ID: <code>{message.from_user.id}</code>\n"
         f"👤 {user['full_name']}  |  Rol: <b>{user['role']}</b>\n"

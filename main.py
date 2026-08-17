@@ -10,10 +10,12 @@ Ishga tushirish:
 import asyncio
 import logging
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import BotCommand
+from aiogram.types import (
+    BotCommand, BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats,
+)
 
 from config import ConfigError, load_settings, setup_logging
 from db.pool import close_pool, init_pool
@@ -44,6 +46,15 @@ def build_dispatcher(settings) -> Dispatcher:
         observer.outer_middleware(auth)
         observer.outer_middleware(company_mw)
 
+    # Bron va admin oqimlari faqat shaxsiy chatda. Guruhlarda bot
+    # xabarlarga umuman javob bermaydi — u yerda faqat bron xabari va
+    # to'lov tugmasi bo'lishi kerak.
+    # Diqqat: bu faqat message'ga qo'yiladi. callback_query (to'lov
+    # tugmasi) va inline_query (guruhdan apteka qidirish) tegilmaydi.
+    private_only = F.chat.type == "private"
+    for router in (admin.router, pharmacy_admin.router, bron.router):
+        router.message.filter(private_only)
+
     # Tartib muhim: admin routerlari oldinroq (ular IsAdmin bilan
     # cheklangan, o'tmasa keyingisiga tushadi). groups eng oldinda —
     # guruh tugmasi admin bo'lmagan buxgalterga ham ishlashi kerak.
@@ -53,6 +64,19 @@ def build_dispatcher(settings) -> Dispatcher:
     dp.include_router(bron.router)
     dp.include_router(common.router)
     return dp
+
+
+async def setup_commands(bot: Bot) -> None:
+    """Buyruqlar menyusi faqat shaxsiy chatda ko'rinadi.
+
+    Guruhlarda «/» menyusi umuman chiqmasligi kerak — u yerda bot bilan
+    muloqot qilinmaydi, faqat bron xabari va to'lov tugmasi bo'ladi.
+    Bo'sh ro'yxat aynan shuni beradi: Telegram bo'sh ro'yxatni "buyruq
+    yo'q" deb tushunadi va umumiyroq scope'ga qaytmaydi.
+    """
+    await bot.delete_my_commands()  # eski umumiy ro'yxatni olib tashlaymiz
+    await bot.set_my_commands(COMMANDS, scope=BotCommandScopeAllPrivateChats())
+    await bot.set_my_commands([], scope=BotCommandScopeAllGroupChats())
 
 
 async def main() -> None:
@@ -77,7 +101,7 @@ async def main() -> None:
         "Kompaniya: %s (sho't kodi %s)", company["name"], company["account_code"]
     )
 
-    await bot.set_my_commands(COMMANDS)
+    await setup_commands(bot)
     me = await bot.get_me()
     logger.info("Bot ishga tushdi... 🚀  @%s", me.username)
 
