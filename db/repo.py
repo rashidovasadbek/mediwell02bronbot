@@ -450,6 +450,21 @@ async def mark_sent_to_pay(bron_id: int, by_tg_id: int) -> bool:
         return row is not None
 
 
+async def revert_sent_to_pay(bron_id: int) -> None:
+    """Oplata guruhiga yuborib bo'lmasa statusni qaytaradi.
+
+    Aks holda bron 'sent_to_pay' bo'lib qolib, tugma ham ishlamay
+    qolardi — hech kim uni to'lovga yubora olmasdi.
+    """
+    async with get_pool().acquire() as conn:
+        await conn.execute(
+            """UPDATE bron
+               SET status = 'new', sent_to_pay_at = NULL, sent_to_pay_by = NULL
+               WHERE id = $1 AND status = 'sent_to_pay'""",
+            bron_id,
+        )
+
+
 async def list_brons(manager_tg_id: int | None = None, limit: int = 20):
     async with get_pool().acquire() as conn:
         if manager_tg_id is not None:

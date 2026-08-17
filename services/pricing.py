@@ -100,6 +100,31 @@ def calc_items(rows) -> Totals:
     return Totals(lines=lines, grand_total=grand_total)
 
 
+def stored_items(rows) -> Totals:
+    """Bazadagi bron_item qatorlaridan Totals yasaydi — QAYTA HISOBLAMAYDI.
+
+    Bron yaratilganda hisoblangan summalar saqlanadi. Keyin dori narxi
+    o'zgarsa ham, to'lov xabaridagi raqamlar hujjatdagi bilan bir xil
+    qolishi shart — shuning uchun nds_sum va line_total bazadan olinadi.
+    """
+    lines = [
+        Line(
+            drug_id=r["drug_id"],
+            name=r["name"],
+            unit=r["unit"],
+            quantity=int(r["quantity"]),
+            price_no_nds=_dec(r["price_no_nds"]),
+            nds_rate=int(r["nds_rate"]),
+            cost_no_nds=_dec(r["price_no_nds"]) * int(r["quantity"]),
+            nds_sum=_dec(r["nds_sum"]),
+            line_total=_dec(r["line_total"]),
+        )
+        for r in rows
+    ]
+    grand_total = sum((ln.line_total for ln in lines), Decimal("0"))
+    return Totals(lines=lines, grand_total=grand_total)
+
+
 # --- Formatlash ---------------------------------------------------------
 # Faqat ko'rsatish uchun. Hisobga qaytib kirmaydi — farm_botda formatlangan
 # matn keyin float() bilan qayta o'qilardi, bu esa xato manbai edi.

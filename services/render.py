@@ -95,40 +95,47 @@ def _date(value) -> str:
     return value.strftime("%d.%m.%Y") if value else "—"
 
 
-def bron_group_messages(bron_id: int, company, pharmacy, totals: Totals,
+def bron_group_messages(bron_id: int, pharmacy, totals: Totals,
                         manager_name: str) -> list[str]:
-    """Bron guruhiga tushadigan xabar."""
+    """Bron guruhiga tushadigan xabar.
+
+    INN, sana va bank rekvizitlari ataylab yo'q — bu guruhda bronni
+    kim, qaysi aptekaga qilgani ko'rinsa yetarli.
+    """
     header = (
-        f"🚀 <b>YANGI BRON</b> №{bron_id}  |  {company['header_emoji']} "
-        f"<b>{esc(company['name'])}</b>\n"
+        f"🚀 <b>YANGI BRON</b> №{bron_id}\n"
         f"🏢 <b>{esc(pharmacy['name'])}</b>\n"
-        f"🔢 INN: <code>{esc(pharmacy['inn'])}</code>\n"
-        f"📄 Shartnoma №{esc(pharmacy['contract_no'])}"
-        f"  ({_date(pharmacy['contract_date'])})\n"
         f"📍 {esc(pharmacy['region_name'])}  |  👤 {esc(manager_name)}\n"
-        f"{LINE}"
+        f"📄 Shartnoma №{esc(pharmacy['contract_no'])}\n"
+        f"{SHORT_LINE}"
     )
-    footer = f"{LINE}\n💰 <b>JAMI: <code>{fmt_sum(totals.grand_total)} so'm</code></b>"
+    footer = (
+        f"{SHORT_LINE}\n"
+        f"💰 <b>JAMI:</b> <code>{fmt_sum(totals.grand_total)}</code> so'm"
+    )
     return chunks([header] + spec_lines(totals) + [footer])
 
 
-def oplata_group_messages(bron, items_totals: Totals, company) -> list[str]:
-    """Oplata guruhiga tushadigan xabar."""
+def oplata_group_messages(bron, totals: Totals) -> list[str]:
+    """Oplata guruhiga tushadigan xabar — eng to'liq ma'lumot.
+
+    Menejer ismi va bank rekvizitlari yo'q: pul allaqachon tushgan.
+    """
     header = (
         f"💳 <b>TO'LOV QILINDI</b>  |  Bron №{bron['id']}\n"
-        f"{company['header_emoji']} <b>{esc(company['name'])}</b>\n\n"
         f"🏢 <b>{esc(bron['pharmacy_name'])}</b>\n"
         f"🔢 INN: <code>{esc(bron['inn'])}</code>\n"
-        f"📄 Shartnoma №{esc(bron['doc_contract_no'])}"
-        f"  ({_date(bron['doc_contract_date'])})\n"
-        f"📍 {esc(bron['region_name'])}  |  👤 {esc(bron['manager_name'] or '—')}\n"
-        f"{LINE}"
+        f"📄 Shartnoma №{esc(bron['doc_contract_no'])}\n"
+        f"📅 Sana: {_date(bron['doc_contract_date'])}\n"
+        f"📍 {esc(bron['region_name'])}\n"
+        f"{SHORT_LINE}"
     )
     footer = (
-        f"{LINE}\n"
-        f"💰 <b>JAMI TO'LOV: <code>{fmt_sum(bron['total_sum'])} so'm</code></b>"
+        f"{SHORT_LINE}\n"
+        f"💰 <b>TO'LOV UCHUN JAMI:</b> "
+        f"<code>{fmt_sum(totals.grand_total)}</code> so'm"
     )
-    return chunks([header] + spec_lines(items_totals) + [footer])
+    return chunks([header] + spec_lines(totals) + [footer])
 
 
 def manager_receipt_messages(company, pharmacy, totals: Totals) -> list[str]:

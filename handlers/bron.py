@@ -359,7 +359,7 @@ async def confirm(message: types.Message, state: FSMContext, user, company,
 
     # --- Bron guruhiga ---
     await _send_to_bron_group(
-        message.bot, settings.bron_group_id, bron_id, company, pharmacy, totals,
+        message.bot, settings.bron_group_id, bron_id, pharmacy, totals,
         manager_name=user["full_name"],
     )
 
@@ -370,10 +370,10 @@ def _safe_filename(pharmacy_name: str, bron_id: int) -> str:
     return f"Bron_{bron_id}_{safe or 'apteka'}.xlsx"
 
 
-async def _send_to_bron_group(bot: Bot, group_id: int, bron_id: int, company,
+async def _send_to_bron_group(bot: Bot, group_id: int, bron_id: int,
                               pharmacy, totals, manager_name: str) -> None:
     """Guruhga yuborish alohida: xato bo'lsa ham bron bazada qoladi."""
-    parts = bron_group_messages(bron_id, company, pharmacy, totals, manager_name)
+    parts = bron_group_messages(bron_id, pharmacy, totals, manager_name)
     try:
         sent = None
         for i, part in enumerate(parts):

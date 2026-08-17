@@ -17,7 +17,7 @@ from aiogram.types import BotCommand
 
 from config import ConfigError, load_settings, setup_logging
 from db.pool import close_pool, init_pool
-from handlers import admin, bron, common, pharmacy_admin
+from handlers import admin, bron, common, groups, pharmacy_admin
 from middlewares.auth import AuthMiddleware
 from middlewares.context import CompanyMiddleware
 from services import company as company_service
@@ -45,7 +45,9 @@ def build_dispatcher(settings) -> Dispatcher:
         observer.outer_middleware(company_mw)
 
     # Tartib muhim: admin routerlari oldinroq (ular IsAdmin bilan
-    # cheklangan, o'tmasa keyingisiga tushadi).
+    # cheklangan, o'tmasa keyingisiga tushadi). groups eng oldinda —
+    # guruh tugmasi admin bo'lmagan buxgalterga ham ishlashi kerak.
+    dp.include_router(groups.router)
     dp.include_router(admin.router)
     dp.include_router(pharmacy_admin.router)
     dp.include_router(bron.router)
