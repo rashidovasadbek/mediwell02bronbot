@@ -176,3 +176,80 @@ def build_pharmacies_excel(rows) -> bytes:
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:{get_column_letter(len(PHARMACY_COLUMNS))}{len(rows) + 1}"
     return _save(wb)
+
+
+BRON_COLUMNS = [
+    ("Bron №", 10),
+    ("Sana", 18),
+    ("Apteka", 42),
+    ("Viloyat", 18),
+    ("Shartnoma №", 16),
+    ("Menejer", 24),
+    ("Holat", 20),
+    ("Summa", 18),
+]
+
+DRUG_STAT_COLUMNS = [
+    ("№", 6),
+    ("Dori nomi", 45),
+    ("O'lchov", 12),
+    ("Miqdori", 14),
+    ("Summa", 18),
+]
+
+
+def _header(ws, columns) -> None:
+    for col, (title, width) in enumerate(columns, 1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = HEADER_FILL
+        cell.font = HEADER_FONT
+        cell.alignment = CENTER
+        ws.column_dimensions[get_column_letter(col)].width = width
+    ws.freeze_panes = "A2"
+
+
+def build_stats_excel(brons, drugs, period_label: str, status_label: dict) -> bytes:
+    """Statistika eksporti: bronlar ro'yxati + dorilar kesimi.
+
+    created_local bazadan Toshkent vaqtida, zonasiz keladi — openpyxl
+    timezone bilan datetime ni umuman qabul qilmaydi.
+    """
+    wb = Workbook()
+
+    ws = wb.active
+    ws.title = "Bronlar"
+    _header(ws, BRON_COLUMNS)
+    for i, r in enumerate(brons, 1):
+        created = r["created_local"]
+        ws.append([
+            r["id"],
+            created.replace(tzinfo=None) if created else None,
+            r["pharmacy_name"],
+            r["region_name"],
+            r["doc_contract_no"] or "—",
+            r["manager_name"] or "—",
+            status_label.get(r["status"], r["status"]),
+            r["total_sum"],
+        ])
+        ws.cell(row=i + 1, column=2).number_format = "DD.MM.YYYY HH:MM"
+        ws.cell(row=i + 1, column=8).number_format = MONEY_FMT
+
+    last = len(brons) + 1
+    if brons:
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(BRON_COLUMNS))}{last}"
+        total_row = last + 1
+        label = ws.cell(row=total_row, column=7, value=f"JAMI ({period_label}):")
+        label.font = Font(bold=True)
+        label.alignment = Alignment(horizontal="right", vertical="center")
+        total = ws.cell(row=total_row, column=8,
+                        value=f"=SUM(H2:H{last})" if last > 1 else 0)
+        total.font = Font(bold=True)
+        total.number_format = MONEY_FMT
+
+    ws2 = wb.create_sheet("Dorilar")
+    _header(ws2, DRUG_STAT_COLUMNS)
+    for i, d in enumerate(drugs, 1):
+        ws2.append([i, d["drug_name"], d["unit"], d["qty"], d["total"]])
+        ws2.cell(row=i + 1, column=5).number_format = MONEY_FMT
+
+    return _save(wb)

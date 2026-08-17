@@ -48,6 +48,7 @@ Adminlar `.env` da emas, **bazada** (`app_user.role`). Admin qo'shish uchun kod 
 | `handlers/groups.py` | Bron guruhidagi «To'lov guruhiga yuborish» tugmasi |
 | `handlers/admin.py` | Xodimlar, dorilar, kompaniya rekvizitlari |
 | `handlers/pharmacy_admin.py` | Aptekalar: qo'shish, tahrirlash, ma'lumot, Excel |
+| `handlers/stats.py` | 📊 Statistika: davr bo'yicha hisobot + Excel (faqat admin) |
 | `middlewares/auth.py` | `app_user` ro'yxatidan o'tmagan odam kira olmaydi |
 | `services/pricing.py` | Pul hisobi — **yagona manba** |
 | `services/render.py` | Xabar matnlari + 4096 belgi chegarasi (`chunks()`) |

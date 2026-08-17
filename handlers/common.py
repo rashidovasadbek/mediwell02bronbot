@@ -19,7 +19,6 @@ HELP_TEXT = (
     "2️⃣ Dorilarni tanlab, har biriga miqdor kiriting\n"
     "3️⃣ <b>🛒 Hisoblash</b> → spesifikatsiyani ko'ring\n"
     "4️⃣ <b>✅ Tasdiqlash</b> → Excel sizga keladi, bron guruhga tushadi\n\n"
-    "📜 <b>Mening bronlarim</b> — oxirgi bronlaringiz tarixi\n\n"
     "🆘 Muammo bo'lsa administratorga murojaat qiling."
 )
 

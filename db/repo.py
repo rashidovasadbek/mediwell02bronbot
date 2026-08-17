@@ -488,3 +488,148 @@ async def list_brons(manager_tg_id: int | None = None, limit: int = 20):
                 manager_tg_id, limit,
             )
         return await conn.fetch(BRON_SELECT + " ORDER BY b.id DESC LIMIT $1", limit)
+
+
+# ============================================================
+#  STATISTIKA
+# ============================================================
+# Bazada vaqt TIMESTAMPTZ (ya'ni UTC) saqlanadi, lekin "bugun" degani
+# foydalanuvchi uchun O'zbekiston kuni. Shuning uchun davr chegarasi
+# Python emas, Postgresda hisoblanadi — server qaysi zonada turishidan
+# qat'i nazar natija bir xil bo'ladi.
+
+STATS_TZ = "Asia/Tashkent"
+PERIOD_UNITS = {"today": "day", "week": "week", "month": "month"}
+# Davr chegarasi yo'q degani — 'all'
+
+
+async def period_start(period: str) -> tuple:
+    """(davr boshi, 'DD.MM.YYYY') juftligi. Noma'lum yoki 'all' → (None, None).
+
+    Sana matni ham shu yerda yasaladi: chegara Toshkent vaqtida, natija
+    esa UTC bo'lgani uchun Pythonda formatlash noto'g'ri kun ko'rsatardi.
+    """
+    unit = PERIOD_UNITS.get(period)
+    if unit is None:
+        return None, None
+    # unit faqat PERIOD_UNITS dan keladi — foydalanuvchi matni emas
+    start = f"date_trunc('{unit}', now() AT TIME ZONE $1::text)"
+    async with get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            f"""SELECT {start} AT TIME ZONE $1::text     AS ts,
+                       to_char({start}, 'DD.MM.YYYY')    AS label""",
+            STATS_TZ,
+        )
+        return row["ts"], row["label"]
+
+
+# $1 — company_id, $2 — davr boshi (NULL bo'lsa cheklov yo'q)
+_PERIOD_WHERE = "b.company_id = $1 AND ($2::timestamptz IS NULL OR b.created_at >= $2)"
+
+
+async def stats_totals(company_id: int, since):
+    """Umumiy raqamlar: bronlar soni, summa, nechta har xil apteka."""
+    async with get_pool().acquire() as conn:
+        return await conn.fetchrow(
+            f"""SELECT COUNT(*)                        AS brons,
+                       COALESCE(SUM(b.total_sum), 0)   AS total,
+                       COUNT(DISTINCT b.pharmacy_id)   AS pharmacies
+                FROM bron b
+                WHERE {_PERIOD_WHERE}""",
+            company_id, since,
+        )
+
+
+async def stats_by_status(company_id: int, since):
+    async with get_pool().acquire() as conn:
+        return await conn.fetch(
+            f"""SELECT b.status,
+                       COUNT(*)                      AS n,
+                       COALESCE(SUM(b.total_sum), 0) AS total
+                FROM bron b
+                WHERE {_PERIOD_WHERE}
+                GROUP BY b.status
+                ORDER BY n DESC""",
+            company_id, since,
+        )
+
+
+async def stats_top_drugs(company_id: int, since, limit: int = 10):
+    """Qaysi dori ko'p ketdi.
+
+    Guruhlash drug_name bo'yicha, drug_id bo'yicha emas: bron_item da nom
+    snapshot qilingan va dori bazadan o'chirilsa ham hisobotda qoladi.
+    """
+    async with get_pool().acquire() as conn:
+        return await conn.fetch(
+            f"""SELECT bi.drug_name,
+                       MIN(bi.unit)          AS unit,
+                       SUM(bi.quantity)      AS qty,
+                       SUM(bi.line_total)    AS total
+                FROM bron_item bi
+                JOIN bron b ON b.id = bi.bron_id
+                WHERE {_PERIOD_WHERE}
+                GROUP BY bi.drug_name
+                ORDER BY total DESC
+                LIMIT $3""",
+            company_id, since, limit,
+        )
+
+
+async def stats_by_region(company_id: int, since):
+    async with get_pool().acquire() as conn:
+        return await conn.fetch(
+            f"""SELECT r.name,
+                       COUNT(*)                      AS n,
+                       COALESCE(SUM(b.total_sum), 0) AS total
+                FROM bron b
+                JOIN pharmacy p ON b.pharmacy_id = p.id
+                JOIN region r   ON p.region_id = r.id
+                WHERE {_PERIOD_WHERE}
+                GROUP BY r.id, r.name
+                ORDER BY total DESC""",
+            company_id, since,
+        )
+
+
+async def stats_top_pharmacies(company_id: int, since, limit: int = 10):
+    async with get_pool().acquire() as conn:
+        return await conn.fetch(
+            f"""SELECT p.name,
+                       r.name                        AS region_name,
+                       COUNT(*)                      AS n,
+                       COALESCE(SUM(b.total_sum), 0) AS total
+                FROM bron b
+                JOIN pharmacy p ON b.pharmacy_id = p.id
+                JOIN region r   ON p.region_id = r.id
+                WHERE {_PERIOD_WHERE}
+                GROUP BY p.id, p.name, r.name
+                ORDER BY total DESC
+                LIMIT $3""",
+            company_id, since, limit,
+        )
+
+
+# Excel uchun alohida select: sana Toshkent vaqtiga o'tkazilgan holda
+# keladi (created_local). Aks holda faylda UTC ko'rinib, kechqurun
+# qilingan bronlar oldingi kunga tushib qolardi.
+EXPORT_SELECT = """
+    SELECT b.id, b.status, b.total_sum, b.doc_contract_no,
+           (b.created_at AT TIME ZONE $3::text) AS created_local,
+           p.name       AS pharmacy_name,
+           r.name       AS region_name,
+           u.full_name  AS manager_name
+    FROM bron b
+    JOIN pharmacy p ON b.pharmacy_id = p.id
+    JOIN region r   ON p.region_id = r.id
+    LEFT JOIN app_user u ON u.telegram_id = b.manager_tg_id
+"""
+
+
+async def list_brons_for_export(company_id: int, since, limit: int = 5000):
+    """Excel uchun davrdagi bronlar — eskisidan yangisiga."""
+    async with get_pool().acquire() as conn:
+        return await conn.fetch(
+            EXPORT_SELECT + f" WHERE {_PERIOD_WHERE} ORDER BY b.id LIMIT $4",
+            company_id, since, STATS_TZ, limit,
+        )

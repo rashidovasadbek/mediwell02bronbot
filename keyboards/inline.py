@@ -21,6 +21,7 @@ CB_USER = "usr:"              # xodim kartochkasi
 CB_REQ_FIELD = "req:"         # rekvizit maydoni
 CB_INFO_REGION = "inforeg:"   # region bo'yicha aptekalar
 CB_SEND_TO_PAY = "pay:"       # bron guruhidagi to'lov tugmasi
+CB_STATS = "stat:"            # statistika davri va eksporti
 CB_NOOP = "noop"
 
 
@@ -185,6 +186,31 @@ def pharmacy_info_menu() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📍 Region bo'yicha", callback_data="info:region")],
         [InlineKeyboardButton(text="📥 Excel (hammasi)", callback_data="info:excel")],
     ])
+
+
+STATS_PERIODS = [
+    ("today", "📅 Bugun"),
+    ("week", "🗓 Bu hafta"),
+    ("month", "📆 Bu oy"),
+    ("all", "♾ Hammasi"),
+]
+
+
+def stats_periods(current: str) -> InlineKeyboardMarkup:
+    """Davr tugmalari — tanlangani ✅ bilan.
+
+    Excel tugmasi joriy davrni callback_data ichida olib yuradi, shunda
+    handler holatni eslab qolishi shart emas.
+    """
+    b = InlineKeyboardBuilder()
+    for code, label in STATS_PERIODS:
+        mark = " ✅" if code == current else ""
+        b.button(text=f"{label}{mark}", callback_data=f"{CB_STATS}p:{code}")
+    b.adjust(2)
+    b.row(InlineKeyboardButton(
+        text="📥 Excel yuklab olish", callback_data=f"{CB_STATS}x:{current}"
+    ))
+    return b.as_markup()
 
 
 def send_to_pay(bron_id: int) -> InlineKeyboardMarkup:

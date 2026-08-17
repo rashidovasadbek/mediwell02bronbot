@@ -9,7 +9,6 @@ from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 # --- Bosh menyu ---
 BTN_BRON = "📋 Bron"
-BTN_MY_BRONS = "📜 Mening bronlarim"
 BTN_HELP = "❓ Yordam"
 BTN_ADMIN = "⚙️ Panel"
 
@@ -28,6 +27,7 @@ BTN_EDIT_PHARMACY = "📝 Aptekani tahrirlash"
 BTN_PHARMACY_INFO = "📑 Apteka ma'lumoti"
 BTN_STAFF = "👤 Xodimlar"
 BTN_REQUISITES = "🏦 Rekvizitlar"
+BTN_STATS = "📊 Statistika"
 
 # --- Umumiy ---
 BTN_CANCEL = "🔙 Bekor qilish"
@@ -47,7 +47,7 @@ def _kb(rows: list[list[str]], placeholder: str | None = None) -> ReplyKeyboardM
 
 
 def main_menu(show_panel: bool) -> ReplyKeyboardMarkup:
-    rows = [[BTN_BRON, BTN_MY_BRONS], [BTN_HELP]]
+    rows = [[BTN_BRON], [BTN_HELP]]
     if show_panel:
         rows.append([BTN_ADMIN])
     return _kb(rows, "Tanlang...")
@@ -57,14 +57,14 @@ def admin_menu(role: str = "admin") -> ReplyKeyboardMarkup:
     """Panel tugmalari rolga qarab.
 
     Buxgalter aptekalar bilan to'liq ishlaydi, lekin dori narxlari,
-    xodimlar va kompaniya rekvizitlari faqat adminda qoladi.
+    xodimlar, rekvizitlar va statistika faqat adminda qoladi.
     """
     rows = [
         [BTN_NEW_PHARMACY, BTN_EDIT_PHARMACY],
         [BTN_PHARMACY_INFO],
     ]
     if role == "admin":
-        rows.insert(0, [BTN_DRUGS])
+        rows.insert(0, [BTN_DRUGS, BTN_STATS])
         rows.append([BTN_STAFF, BTN_REQUISITES])
     rows.append([BTN_MAIN_MENU])
     return _kb(rows)

@@ -15,7 +15,7 @@ from db import repo
 from keyboards import inline as ikb
 from keyboards import reply as kb
 from services.excel import build_spec_excel
-from services.pricing import calc_items, fmt_sum
+from services.pricing import calc_items
 from services.render import (
     bron_group_messages, esc, manager_receipt_messages, spec_messages,
 )
@@ -393,45 +393,3 @@ async def _send_to_bron_group(bot: Bot, group_id: int, bron_id: int,
         logger.info("Bron %s guruhga yuborildi (%s ta xabar)", bron_id, len(parts))
     except Exception:
         logger.exception("Bron %s ni guruhga yuborib bo'lmadi", bron_id)
-
-
-# ============================================================
-#  📜 MENING BRONLARIM
-# ============================================================
-
-@router.message(F.text == kb.BTN_MY_BRONS)
-async def my_brons(message: types.Message, state: FSMContext, user,
-                   is_admin: bool, has_panel: bool):
-    await state.clear()
-    # Admin hammasini, qolganlar faqat o'zinikini ko'radi
-    rows = await repo.list_brons(None if is_admin else message.from_user.id, limit=15)
-    if not rows:
-        return await message.answer(
-            "📜 Hali bron yo'q.", reply_markup=kb.main_menu(has_panel)
-        )
-
-    status_label = {
-        "new": "🆕 yangi",
-        "sent_to_pay": "💰 to'lovga yuborilgan",
-        "paid": "✅ to'langan",
-        "cancelled": "❌ bekor qilingan",
-    }
-    lines = [
-        f"📜 <b>{'Barcha bronlar' if is_admin else 'Mening bronlarim'}</b> "
-        f"— oxirgi {len(rows)} ta\n"
-    ]
-    for r in rows:
-        lines.append(
-            f"<b>№{r['id']}</b>  {r['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
-            f"🏢 {esc(r['pharmacy_name'])}\n"
-            f"📄 №{esc(r['doc_contract_no'])}  |  "
-            f"💰 <code>{fmt_sum(r['total_sum'])}</code> so'm\n"
-            f"Holat: {status_label.get(r['status'], r['status'])}"
-            + (f"\n👤 {esc(r['manager_name'])}" if is_admin and r["manager_name"] else "")
-        )
-
-    from services.render import chunks
-    parts = chunks(lines)
-    for i, part in enumerate(parts):
-        last = i == len(parts) - 1
-        await message.answer(part, reply_markup=kb.main_menu(has_panel) if last else None)

@@ -19,7 +19,7 @@ from aiogram.types import (
 
 from config import ConfigError, load_settings, setup_logging
 from db.pool import close_pool, init_pool
-from handlers import admin, bron, common, groups, pharmacy_admin
+from handlers import admin, bron, common, groups, pharmacy_admin, stats
 from middlewares.auth import AuthMiddleware
 from middlewares.context import CompanyMiddleware
 from services import company as company_service
@@ -52,7 +52,7 @@ def build_dispatcher(settings) -> Dispatcher:
     # Diqqat: bu faqat message'ga qo'yiladi. callback_query (to'lov
     # tugmasi) va inline_query (guruhdan apteka qidirish) tegilmaydi.
     private_only = F.chat.type == "private"
-    for router in (admin.router, pharmacy_admin.router, bron.router):
+    for router in (admin.router, stats.router, pharmacy_admin.router, bron.router):
         router.message.filter(private_only)
 
     # Tartib muhim: admin routerlari oldinroq (ular IsAdmin bilan
@@ -60,6 +60,7 @@ def build_dispatcher(settings) -> Dispatcher:
     # guruh tugmasi admin bo'lmagan buxgalterga ham ishlashi kerak.
     dp.include_router(groups.router)
     dp.include_router(admin.router)
+    dp.include_router(stats.router)
     dp.include_router(pharmacy_admin.router)
     dp.include_router(bron.router)
     dp.include_router(common.router)
