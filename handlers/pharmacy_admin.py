@@ -155,7 +155,7 @@ async def new_pharmacy_save(message: types.Message, state: FSMContext,
         )
 
     await state.clear()
-    seq, region_code = contract["seq_no"], contract["region_code"]
+    seq = contract["seq_no"]
     await message.answer(
         f"✅ <b>Apteka qo'shildi!</b>\n\n"
         f"🏢 {esc(data['ph_name'])}\n"
@@ -163,7 +163,7 @@ async def new_pharmacy_save(message: types.Message, state: FSMContext,
         f"📍 {esc(data['ph_region_name'])}\n"
         f"📞 {esc(phone) if phone else '—'}\n"
         f"📄 Shartnoma №<b>{esc(contract['contract_no'])}</b>\n"
-        f"   <i>(A={seq} / B={region_code} / C={esc(contract['account_code'])})</i>\n"
+        f"   <i>(A={seq} / C={esc(contract['account_code'])})</i>\n"
         f"📅 {contract['contract_date'].strftime('%d.%m.%Y')}",
         parse_mode="HTML",
         reply_markup=kb.admin_menu(user["role"]),
@@ -261,9 +261,7 @@ async def edit_pharmacy_region(callback: types.CallbackQuery, state: FSMContext,
     row = await repo.get_pharmacy(company["id"], data["edit_ph_id"])
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
-        f"✅ Viloyat yangilandi!\n\n{pharmacy_block(row)}\n\n"
-        f"<i>Eslatma: shartnoma raqamidagi viloyat kodi o'zgarmaydi — "
-        f"hujjat allaqachon berilgan.</i>",
+        f"✅ Viloyat yangilandi!\n\n{pharmacy_block(row)}",
         parse_mode="HTML",
         reply_markup=kb.admin_menu(user["role"]),
     )

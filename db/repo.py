@@ -238,11 +238,10 @@ async def create_pharmacy_with_contract(
 ):
     """Apteka + shartnomani bitta tranzaksiyada yaratadi.
 
-    Shartnoma raqami A/B/C:
+    Shartnoma raqami A/C:
       A — counter jadvalidan, UPDATE ... RETURNING bilan (atomar).
           farm_botdagi MAX(seq_no)+1 usuli ikki admin bir vaqtda
           qo'shganda bir xil raqam berardi — bu yerda mumkin emas.
-      B — viloyat kodi
       C — kompaniyaning sho't kodi (bu botda '02')
     """
     async with get_pool().acquire() as conn:
@@ -265,7 +264,7 @@ async def create_pharmacy_with_contract(
             if seq_no is None:
                 raise ValueError("counter jadvalida kompaniya yo'q")
 
-            contract_no = f"{seq_no}/{region['code']}/{account_code}"
+            contract_no = f"{seq_no}/{account_code}"
             contract = await conn.fetchrow(
                 """INSERT INTO contract (pharmacy_id, company_id, seq_no, region_code,
                                          account_code, contract_no, contract_date)

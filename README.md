@@ -62,9 +62,8 @@ To'lov tugmasini faqat `admin` va `buxgalter` bosa oladi.
 
 ### Shartnoma raqami
 
-Format `A/B/C`:
+Format `A/C`:
 - **A** — `counter` jadvalidan, `UPDATE … RETURNING` bilan (atomar, poyga yo'q)
-- **B** — viloyat kodi (`region.code`)
 - **C** — kompaniyaning sho't kodi — bu botda doim **`02`**
 
 ### Pul hisobi
